@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import Case, DecimalField, F, Sum, Value, When
 
-from apps.accounts.models import Account
+from apps.accounts.models import Account, BankAccount, _BANK_ACCOUNT_LEDGER_TOKEN
 from apps.ledger.models import LedgerEntry, _LEDGER_ENTRY_SERVICE_TOKEN
 
 
@@ -49,7 +49,14 @@ class LedgerService:
         credit_account: Account,
         amount: Decimal,
         currency: str,
+        _account_service_token=None,
     ) -> LedgerEntry:
+        touches_bank_account = BankAccount.objects.filter(
+            ledger_account_id__in=[debit_account.id, credit_account.id]
+        ).exists()
+        if touches_bank_account and _account_service_token is not _BANK_ACCOUNT_LEDGER_TOKEN:
+            raise RuntimeError("BankAccount ledger entries must be created via AccountService")
+
         if debit_account == credit_account:
             raise ValueError("debit_account and credit_account must be different")
 
