@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.core.apps.CoreConfig",
     "apps.accounts.apps.AccountsConfig",
     "apps.ledger.apps.LedgerConfig",
+    "apps.transactions.apps.TransactionsConfig",
 ]
 
 

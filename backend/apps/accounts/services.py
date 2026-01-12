@@ -28,7 +28,7 @@ class SameAccountError(Exception):
 
 class AccountService:
     @staticmethod
-    def _check_account_active(account: BankAccount) -> None:
+    def _check_account_active(  account: BankAccount) -> None:
         if account.status == BankAccount.STATUS_FROZEN:
             raise AccountFrozenError(f"Account {account.id} is frozen")
         if account.status == BankAccount.STATUS_CLOSED:
