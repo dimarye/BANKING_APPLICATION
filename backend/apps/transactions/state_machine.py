@@ -5,6 +5,7 @@ class IllegalTransitionError(Exception):
 class TransactionStateMachine:
     ALLOWED_TRANSITIONS = {
         ("CREATED", "PENDING"),
+        ("CREATED", "FAILED"),  # Allow early failure for fraud detection
         ("PENDING", "COMPLETED"),
         ("PENDING", "FAILED"),
     }
