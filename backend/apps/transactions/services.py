@@ -4,6 +4,7 @@ from django.db import IntegrityError, transaction
 
 from apps.accounts.services import AccountService
 from apps.accounts.models import BankAccount
+from apps.fraud.services import FraudService, FraudDetectionError
 from apps.transactions.models import Transaction
 from apps.transactions.state_machine import TransactionStateMachine
 
@@ -83,6 +84,18 @@ class TransactionService:
                 raise TransactionInProgressError(
                     "Transaction is currently being processed. Please retry later."
                 )
+
+            # Evaluate fraud rules before transitioning to PENDING
+            try:
+                FraudService.evaluate_transaction(txn)
+            except FraudDetectionError as e:
+                # If fraud detection blocks the transaction, mark it as FAILED
+                TransactionStateMachine.transition_to_failed(
+                    txn,
+                    e.rule_code,
+                    e.reason,
+                )
+                raise TransactionFailedError(e.rule_code, e.reason)
 
             TransactionStateMachine.transition_to_pending(txn)
 
