@@ -1,43 +1,96 @@
+version: '3.8'
+
 services:
   db:
     image: postgres:16-alpine
+    container_name: banking_db
     env_file:
       - .env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-banking}
+      POSTGRES_USER: ${POSTGRES_USER:-banking}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-banking}
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5434:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-banking} -d ${POSTGRES_DB:-banking}"]
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
+    networks:
+      - banking_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: banking_redis
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - banking_network
 
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile
+    container_name: banking_backend
     env_file:
       - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     volumes:
       - ./backend:/app
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "8001:8000"
     depends_on:
       db:
         condition: service_healthy
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "
+        python manage.py migrate &&
+        python manage.py collectstatic --noinput &&
+        daphne -b 0.0.0.0 -p 8000 config.asgi:application
+      "
+    restart: unless-stopped
+    networks:
+      - banking_network
 
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile
+    container_name: banking_frontend
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "3000:3000"
     volumes:
       - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - banking_network
 
 volumes:
-  db_data:
+  postgres_data:
+  redis_data:
+
+networks:
+  banking_network:
+    driver: bridge

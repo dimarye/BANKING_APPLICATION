@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "channels",
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
@@ -42,6 +43,7 @@ INSTALLED_APPS = [
     "apps.ledger.apps.LedgerConfig",
     "apps.transactions.apps.TransactionsConfig",
     "apps.fraud.apps.FraudConfig",
+    "apps.realtime.apps.RealtimeConfig",
 ]
 
 
@@ -114,9 +116,13 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
+# Static files
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-STATIC_URL = "static/"
-
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -184,3 +190,18 @@ X_FRAME_OPTIONS = "DENY"
 # Rate Limiting
 RATELIMIT_ENABLE = True
 RATELIMIT_USE_CACHE = "default"
+
+# Channels Configuration
+ASGI_APPLICATION = "config.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)],
+        },
+    },
+}
+
+# WebSocket Configuration
+CHANNEL_WS_PROTOCOLS = ["websocket", "wss"]
